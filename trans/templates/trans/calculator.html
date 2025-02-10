@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Расчет количества насосных станций для последовательной перекачки нефти и нефтепродуктов</title>
+  <style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        background-color: #f9f9f9;
+        color: #333;
+    }
+    h1, h2 {
+        color: #4CAF50;
+    }
+    .form-container {
+        margin-bottom: 20px;
+        background: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .form-container label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+        color: #555;
+    }
+    .form-container input,
+    .form-container select {
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 15px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    .form-container input:focus,
+    .form-container select:focus {
+        border-color: #4CAF50;
+        outline: none;
+    }
+    .form-container button {
+        padding: 10px 15px;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background-color 0.3s ease;
+    }
+    .form-container button:hover {
+        background-color: #45a049;
+    }
+    .product-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    .product-row select,
+    .product-row input {
+        margin-right: 10px;
+        flex: 1;
+    }
+    .add-product {
+        margin-top: 10px;
+    }
+    .error-message {
+        color: #ff4d4d;
+        margin-bottom: 20px;
+        font-weight: bold;
+    }
+    .product-table {
+        margin-top: 20px;
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .product-table th,
+    .product-table td {
+        border: 1px solid #ddd;
+        padding: 12px;
+        text-align: center;
+    }
+    .product-table th {
+        background-color: #4CAF50;
+        color: white;
+    }
+    .product-table tbody tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+    .product-table tbody tr:hover {
+        background-color: #f1f1f1;
+    }
+</style>
+</head>
+<body>
+    <h1>Расчет количества насосных станций для последовательной перекачки нефти и нефтепродуктов</h1>
+ <a href="{% url 'trans:engineer_dashboard' %}">назад</a>
+     {% if error %}
+        <div class="error-message">
+            {{ error }}
+        </div>
+    {% endif %}
+
+  <form method="POST" action="{% url 'trans:calculator' %}">
+        {% csrf_token %}
+        <div class="form-container">
+            <h2>Введите объем жидкости (млн. т/год)</h2>
+            <input type="number" id="total-quantity" name="quantity" placeholder="Количество (млн. т/год)" required>
+
+            <h2>Введите данные о трубопроводе</h2>
+            <label for="diameter">Внутренний диаметр трубопровода (мм):</label>
+            <input type="number" id="diameter" name="diameter" step="0.01" required>
+
+            <label for="length">Длина трубопровода (км):</label>
+            <input type="number" id="length" name="length" step="0.01" required>
+
+            <label for="elevation_difference">Разность нивелирных высот (м):</label>
+            <input type="number" id="elevation_difference" name="elevation_difference" step="0.01" required>
+
+            <label for="residual_head">Остаточный напор (м):</label>
+            <input type="number" id="residual_head" name="residual_head" step="0.01" required>
+
+            <label for="temperature">Расчетная температура (К):</label>
+            <input type="number" id="temperature" name="temperature" step="0.01" required>
+
+            <h2>Выберите тип топлива</h2>
+            <div id="products-container">
+                <div class="product-row">
+                    <select name="products" class="product-select" required onchange="updateProductTable()">
+                        <option value="">-- Выберите жидкость --</option>
+                        {% for product in products %}
+                            <option value="{{ product.ProductID }}"
+                                    data-density293="{{ product.Density293 }}"
+                                    data-viscosity273="{{ product.Viscosity273 }}"
+                                    data-viscosity293="{{ product.Viscosity293 }}">
+                                {{ product.Name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <input type="number" class="product-percentage" name="product-percentage" placeholder="Процент (%)" step="0.01" required oninput="handlePercentageChange(this)">
+                    <button type="button" onclick="removeProduct(this)">Удалить</button>
+                </div>
+            </div>
+
+            <button type="button" class="add-product" onclick="addProduct()">Добавить жидкость</button>
+            <button type="submit">Сохранить</button>
+            <button type="button" onclick="clearForm()">Очистить</button>
+            <button type="button" onclick="fillDemoData()">Демо</button>
+        </div>
+
+        <!-- Скрытые поля для передачи данных о продуктах -->
+        <div id="hidden-fields-container"></div>
+    </form>
+
+    <h2>Таблица характеристик топлива</h2>
+    <table class="product-table" id="product-table">
+        <thead>
+            <tr>
+                <th>Продукт</th>
+                <th>Плотность при 293K (кг/м³)</th>
+                <th>Вязкость при 273K (мм²/с)</th>
+                <th>Вязкость при 293K (мм²/с)</th>
+                <th>Процент (%)</th>
+                <th>Количество (млн. т/год)</th>
+            </tr>
+        </thead>
+        <tbody id="product-table-body">
+            <!-- Данные будут добавлены динамически -->
+        </tbody>
+    </table>
+ <script>
+        // Функция для добавления новой строки с продуктом
+        function addProduct() {
+            if (!validatePercentages()) {
+                alert("Сумма процентов не может превышать 100%!");
+                return;
+            }
+
+            const container = document.getElementById('products-container');
+            const newRow = document.createElement('div');
+            newRow.className = 'product-row';
+            newRow.innerHTML = `
+                <select name="products" class="product-select" required onchange="updateProductTable()">
+                    <option value="">-- Выберите жидкость --</option>
+                    {% for product in products %}
+                        <option value="{{ product.ProductID }}"
+                                data-density293="{{ product.Density293 }}"
+                                data-viscosity273="{{ product.Viscosity273 }}"
+                                data-viscosity293="{{ product.Viscosity293 }}">
+                            {{ product.Name }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <input type="number" class="product-percentage" name="product-percentage" placeholder="Процент (%)" step="0.01" required oninput="handlePercentageChange(this)">
+                <button type="button" onclick="removeProduct(this)">Удалить</button>
+            `;
+            container.appendChild(newRow);
+        }
+
+        // Функция для удаления строки с продуктом
+        function removeProduct(button) {
+            const row = button.parentElement;
+            row.remove();
+            updateProductTable();
+        }
+
+        // Функция для проверки суммы процентов
+        function validatePercentages() {
+            const productRows = document.querySelectorAll('.product-row');
+            let totalPercentage = 0;
+
+            productRows.forEach(row => {
+                const percentageInput = row.querySelector('.product-percentage');
+                const percentage = parseFloat(percentageInput.value) || 0;
+                totalPercentage += percentage;
+            });
+
+            return totalPercentage <= 100;
+        }
+
+        // Функция для обработки изменения процента
+        function handlePercentageChange(input) {
+            if (!validatePercentages()) {
+                alert("Сумма процентов не может превышать 100%!");
+                input.value = '';
+            }
+            updateProductTable();
+        }
+
+        // Функция для обновления таблицы с характеристиками продуктов
+        function updateProductTable() {
+            const productRows = document.querySelectorAll('.product-row');
+            const tableBody = document.getElementById('product-table-body');
+            const totalQuantity = parseFloat(document.getElementById('total-quantity').value) || 0;
+            tableBody.innerHTML = '';
+
+            productRows.forEach(row => {
+                const selectElement = row.querySelector('.product-select');
+                const percentageInput = row.querySelector('.product-percentage');
+                const selectedOption = selectElement.options[selectElement.selectedIndex];
+                const percentage = parseFloat(percentageInput.value) || 0;
+
+                if (selectedOption.value) {
+                    const productName = selectedOption.text;
+                    const density293 = selectedOption.getAttribute('data-density293');
+                    const viscosity273 = selectedOption.getAttribute('data-viscosity273');
+                    const viscosity293 = selectedOption.getAttribute('data-viscosity293');
+                    const quantity = (percentage / 100) * totalQuantity;
+
+                    const newRow = document.createElement('tr');
+                    newRow.innerHTML = `
+                        <td>${productName}</td>
+                        <td>${density293 || '-'}</td>
+                        <td>${viscosity273 || '-'}</td>
+                        <td>${viscosity293 || '-'}</td>
+                        <td>${percentage.toFixed(2)}%</td>
+                        <td>${quantity.toFixed(2)}</td>
+                    `;
+                    tableBody.appendChild(newRow);
+                }
+            });
+        }
+
+        // Функция для очистки формы
+        function clearForm() {
+            document.getElementById('total-quantity').value = '';
+            document.getElementById('diameter').value = '';
+            document.getElementById('length').value = '';
+            document.getElementById('elevation_difference').value = '';
+            document.getElementById('residual_head').value = '';
+            document.getElementById('temperature').value = '';
+
+            const productsContainer = document.getElementById('products-container');
+            productsContainer.innerHTML = '';
+
+            const tableBody = document.getElementById('product-table-body');
+            tableBody.innerHTML = '';
+
+            addProduct(); // Добавляем первую строку с продуктом
+        }
+
+        // Функция для заполнения демо-данными
+        function fillDemoData() {
+            document.getElementById('total-quantity').value = 8;
+            document.getElementById('diameter').value = 512;
+            document.getElementById('length').value = 900;
+            document.getElementById('elevation_difference').value = 150;
+            document.getElementById('residual_head').value = 30;
+            document.getElementById('temperature').value = 274;
+
+            const productsContainer = document.getElementById('products-container');
+            productsContainer.innerHTML = '';
+
+            const demoProducts = [
+                { id: 1, percentage: 40 },
+                { id: 2, percentage: 30 },
+                { id: 3, percentage: 30 },
+            ];
+
+            demoProducts.forEach(product => {
+                addProduct();
+                const lastRow = productsContainer.lastElementChild;
+                lastRow.querySelector('.product-select').value = product.id;
+                lastRow.querySelector('.product-percentage').value = product.percentage;
+            });
+
+            updateProductTable();
+        }
+
+        // Функция для обновления скрытых полей формы
+        function updateHiddenFields() {
+            const hiddenFieldsContainer = document.getElementById('hidden-fields-container');
+            hiddenFieldsContainer.innerHTML = ''; // Очищаем контейнер
+
+            const productRows = document.querySelectorAll('.product-row');
+            const totalQuantity = parseFloat(document.getElementById('total-quantity').value) || 0;
+
+            productRows.forEach((row, index) => {
+                const selectElement = row.querySelector('.product-select');
+                const percentageInput = row.querySelector('.product-percentage');
+                const percentage = parseFloat(percentageInput.value) || 0;
+                const quantity = (percentage / 100) * totalQuantity;
+
+                // Создаем скрытые поля для передачи данных
+                const productIdField = document.createElement('input');
+                productIdField.type = 'hidden';
+                productIdField.name = `products`;
+                productIdField.value = selectElement.value;
+
+                const percentageField = document.createElement('input');
+                percentageField.type = 'hidden';
+                percentageField.name = `product-percentage`;
+                percentageField.value = percentageInput.value;
+
+                const quantityField = document.createElement('input');
+                quantityField.type = 'hidden';
+                quantityField.name = `product-quantity`;
+                quantityField.value = quantity.toFixed(2); // Количество в млн. т/год
+
+                // Добавляем поля в контейнер
+                hiddenFieldsContainer.appendChild(productIdField);
+                hiddenFieldsContainer.appendChild(percentageField);
+                hiddenFieldsContainer.appendChild(quantityField);
+            });
+        }
+
+        // Обновляем скрытые поля перед отправкой формы
+        document.querySelector('form').addEventListener('submit', function (e) {
+            updateHiddenFields();
+        });
+
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', () => {
+            addProduct(); // Добавляем первую строку с продуктом
+            updateProductTable();
+        });
+    </script>
+</body>
+</html>

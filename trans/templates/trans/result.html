@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Результаты расчета</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+        h1, h2 {
+            color: #4CAF50;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <h1>Результаты расчета</h1>
+      <form method="post" action="{% url 'trans:download_report' %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-primary">Скачать отчет</button>
+</form>
+    <a href="{% url 'trans:engineer_dashboard' %}">назад</a>
+    <h2>Данные о трубопроводе</h2>
+    <p>Диаметр: {{ pipeline_data.diameter }} мм</p>
+    <p>Длина: {{ pipeline_data.length }} км</p>
+    <p>Разность нивелирных высот: {{ pipeline_data.elevation_difference }} м</p>
+    <p>Остаточный напор: {{ pipeline_data.residual_head }} м</p>
+    <p>Температура: {{ pipeline_data.temperature }} К</p>
+    <h2>Общее количество жидкости</h2>
+    <p>{{ total_quantity }} млн. т/год</p>
+    <h2>Данные о продуктах</h2>
+
+
+
+    <table>
+        <thead>
+            <tr>
+                <th>Продукт</th>
+                <th>Плотность при 293K (кг/м³)</th>
+                <th>Плотность при {{ pipeline_data.temperature }}K (кг/м³)</th>
+                <th>Вязкость при 273K (мм²/с)</th>
+                <th>Вязкость при 293K (мм²/с)</th>
+                <th>Процент (%)</th>
+                <th>Количество (млн. т/год)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for product in product_data %}
+            <tr>
+                <td>{{ product.name }}</td>
+                <td>{{ product.density293 }}</td>
+                <td>
+                    {% if product.density_at_temperature is not None %}
+                        {{ product.density_at_temperature|floatformat:2 }}
+                    {% else %}
+                        Ошибка: {{ product.error }}
+                    {% endif %}
+                </td>
+                <td>{{ product.viscosity273 }}</td>
+                <td>{{ product.viscosity293 }}</td>
+                <td>{{ product.percentage }}</td>
+                <td>{{ product.quantity }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <h2>Коэффициент крутизны вискограммы (u)</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Продукт</th>
+                <th>Коэффициент крутизны (u)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for product in product_data %}
+            <tr>
+                <td>{{ product.name }}</td>
+                <td>
+                    {% if product.u is not None %}
+                        {{ product.u|floatformat:4 }}
+                    {% else %}
+                        Ошибка: {{ product.error }}
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <h2>Вязкость при {{ pipeline_data.temperature }}K (мм²/с)</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Продукт</th>
+                <th>Вязкость при {{ pipeline_data.temperature }}K (мм²/с)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for product in product_data %}
+            <tr>
+                <td>{{ product.name }}</td>
+                <td>
+                    {% if product.viscosity_at_temperature is not None %}
+                        {{ product.viscosity_at_temperature|floatformat:2 }}
+                    {% else %}
+                        Ошибка: {{ product.error }}
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <h2>Результаты расчетов</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Параметр</th>
+                <th>Значение</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Наиболее вязкий продукт</td>
+                <td>{{ most_viscous_product.name }} (вязкость: {{ most_viscous_product.viscosity_at_temperature|floatformat:2 }} мм²/с)</td>
+            </tr>
+            <tr>
+                <td>Часовой расход (О<sub>час</sub>)</td>
+                <td>{{ hourly_rate|floatformat:2 }} м³/час</td>
+            </tr>
+            <tr>
+                <td>Расход \( Q \)</td>
+                <td>{{ flow_rate|floatformat:3 }} м³/с</td>
+            </tr>
+            <tr>
+                <td>Средняя скорость потока \( v \)</td>
+                <td>{{ velocity|floatformat:2 }} м/с</td>
+            </tr>
+            <tr>
+                <td>Число Рейнольдса \( Re \)</td>
+                <td>
+                    {% if reynolds_number is not None %}
+                        {{ reynolds_number|floatformat:2 }}
+                    {% else %}
+                        Ошибка: невозможно рассчитать число Рейнольдса
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td>Относительная шероховатость \( \varepsilon \)</td>
+                <td>{{ relative_roughness|floatformat:6 }}</td>
+            </tr>
+            <tr>
+                <td>Переходные числа Рейнольдса (Re<sub>i</sub>)</td>
+                <td>{{ transition_reynolds_i|floatformat:2 }}</td>
+            </tr>
+            <tr>
+                <td>Переходные числа Рейнольдса (Re<sub>ii</sub>)</td>
+                <td>{{ transition_reynolds_ii|floatformat:2 }}</td>
+            </tr>
+            <tr>
+                <td>Коэффициент гидравлического сопротивления \( \lambda \)</td>
+                <td>{{ hydraulic_resistance|floatformat:4 }}</td>
+            </tr>
+            <tr>
+                <td>Потеря напора на трение \( h_r \)</td>
+                <td>{{ friction_head_loss|floatformat:2 }} м</td>
+            </tr>
+            <tr>
+                <td>Полные потери напора в трубопроводе</td>
+                <td>{{ total_head_loss|floatformat:2 }} м</td>
+            </tr>
+        </tbody>
+    </table>
+    <!-- Вывод данных об основном насосе -->
+    <h2>Выбранный основной насос</h2>
+    {% if selected_main_pump %}
+        <ul>
+            <li>Название: {{ selected_main_pump.name }}</li>
+            <li>Производительность: {{ selected_main_pump.flow_rate }} м³/ч</li>
+            <li>Напор на ступень: {{ selected_main_pump.head_per_stage }} м</li>
+            <li>Количество ступеней: {{ required_stages }}</li>
+            <li>Мощность на ступень: {{ selected_main_pump.power_per_stage }} кВт</li>
+            <li>КПД: {{ selected_main_pump.efficiency }}%</li>
+        </ul>
+        <table>
+
+            <tbody>
+                {% for formula in selected_main_pump.formulas %}
+                <tr>
+                    <td>{{ formula.formula }}</td>
+                    <td>{{ formula.description }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Основной насос не найден.</p>
+    {% endif %}
+    <!-- Вывод данных о подпорном насосе -->
+    <h2>Выбранный подпорный насос</h2>
+    {% if selected_booster_pump %}
+        <ul>
+            <li>Название: {{ selected_booster_pump.name }}</li>
+            <li>Производительность: {{ selected_booster_pump.flow_rate }} м³/ч</li>
+            <li>Напор: {{ selected_booster_pump.head }} м</li>
+            <li>Мощность: {{ selected_booster_pump.power }} кВт</li>
+            <li>КПД: {{ selected_booster_pump.efficiency }}%</li>
+        </ul>
+        <table>
+
+            <tbody>
+                {% for formula in selected_booster_pump.formulas %}
+                <tr>
+                    <td>{{ formula.formula }}</td>
+                    <td>{{ formula.description }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Подпорный насос не найден.</p>
+    {% endif %}
+
+{% if selected_main_pump %}
+<h3>Формулы для основного насоса</h3>
+<ul>
+    {% for formula in main_pump_formulas %}
+    <li>{{ formula.formula }} — {{ formula.description }}</li>
+    {% endfor %}
+</ul>
+<p>Результаты:</p>
+<ul>
+    <li>h_mn = {{ h_mn_main1|floatformat:2 }}</li>
+</ul>
+{% endif %}
+
+{% if selected_booster_pump %}
+
+<p>Результаты:</p>
+<ul>
+    <li>h2 = {{ h2_booster|floatformat:2 }}</li>
+</ul>
+{% endif %}
+<p>Формула для расчета P:</p>
+<p>{{ P_formula.formula }}</p>
+<p>Результат расчета P: {{ P }} МПа</p>
+<p>{{ condition_message }}</p>
+
+  <h2>Высота h_st:</h2>
+    <p>{{ h_st_formula.formula }}</p>
+    <p>{{ h_st_formula.description }}</p>
+    <p>Результат: h_st = {{ h_st }}</p>
+
+    <p>результат:n= {{n|floatformat:0 }}</p>
+
+
+    <td>{{ product.viscosity273 }}</td>
+
+<h2>Таблица 6.3 - Полные потери напора и суммарный напор станций</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Продукт</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for product_data in losses_and_pressures %}
+        <tr>
+            <td>{{ product_data.product_name }}</td>
+            <td colspan="3">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Расход, м³/ч</th>
+                            <th>Полные потери напора при перекачке, м</th>
+                            <th>Суммарный напор станций, м</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for data in product_data.data %}
+                        <tr>
+                            <td>{{ data.flow_rate }}</td>
+                            <td>{{ data.total_head_loss|floatformat:2 }}</td>
+                            <td>
+                                {{ data.summary_head_n6|floatformat:2 }}
+                                {{ data.summary_head_n7|floatformat:2 }}
+                                {{ data.summary_head_n8|floatformat:2 }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h2>График потерь напора</h2>
+</body>
+</html>

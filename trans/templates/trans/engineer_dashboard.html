@@ -1,0 +1,42 @@
+<h2>Engineer Dashboard</h2>
+<p>Welcome, {{ user.username }}!</p>
+
+<!-- Блок с информацией о сессии -->
+<div class="session-info">
+    <p><strong>Роль:</strong> {{ user.get_role_display }}</p>
+    <p><strong>ФИО:</strong> {{ user.surname }} {{ user.name}} {{ user.patronymic }}</p>
+    <p><strong>Время входа:</strong> {{ request.session.login_time }}</p>
+</div>
+
+<form method="post" action="{% url 'trans:logout' %}">
+    {% csrf_token %}
+    <button type="submit">Выйти из системы</button>
+</form>
+
+<h3>Your Pipelines</h3>
+<ul>
+    {% for pipeline in pipelines %}
+        <li>{{ pipeline.PipelineID }} - {{ pipeline.Diameter }} mm</li>
+    {% endfor %}
+</ul>
+
+<a href="{% url 'trans:calculator' %}">Перейти к калькулятору</a>
+<a href="{% url 'trans:archive' %}">Перейти к архиву</a>
+
+
+<style>
+    .session-info {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background-color: #f9f9f9;
+        border: 1px solid #ddd;
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .session-info p {
+        margin: 5px 0;
+    }
+</style>

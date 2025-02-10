@@ -1,0 +1,46 @@
+<!-- trans/templates/trans/archive.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Архив отчетов</title>
+</head>
+<body>
+    <h1>Архив отчетов</h1>
+        <a href="{% url 'trans:engineer_dashboard' %}">назад</a>
+
+<table border="1">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Диаметр (мм)</th>
+            <th>Длина (км)</th>
+            <th>Температура (K)</th>
+            <th>Общее количество</th>
+            <th colspan="2">Действия</th>
+        </tr>
+    </thead>
+<tbody>
+    {% for report in reports %}
+    <tr>
+        <td>{{ forloop.counter }}</td>
+        <td>{{ report.pipeline_data.diameter }}</td>
+        <td>{{ report.pipeline_data.length }}</td>
+        <td>{{ report.pipeline_data.temperature }}</td>
+        <td>{{ report.total_quantity }}</td>
+        <td>
+            <a href="{% url 'trans:report_detail' report.id %}">Подробнее</a>
+        </td>
+        <td>
+            <form action="{% url 'trans:delete_report' report.id %}" method="post" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit">Удалить</button>
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+</tbody>
+</table>
+
+</body>
+</html>

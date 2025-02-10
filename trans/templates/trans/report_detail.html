@@ -1,0 +1,45 @@
+<!-- trans/templates/trans/report_detail.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Отчет: {{ report.title }}</title>
+</head>
+<body>
+    <h1>Отчет: {{ report.title }}</h1>
+    <p>Диаметр: {{ report.pipeline_data.diameter }} мм</p>
+    <p>Длина: {{ report.pipeline_data.length }} км</p>
+    <p>Температура: {{ report.pipeline_data.temperature }} K</p>
+    <p>Общее количество: {{ report.total_quantity }}</p>
+
+    <h2>Данные по продуктам:</h2>
+    <ul>
+        {% for product in report.product_data %}
+        <li>{{ product.name }}: {{ product.quantity }} ({{ product.percentage }}%)</li>
+        {% endfor %}
+    </ul>
+
+    <h2>Расчеты:</h2>
+    <p>Число Рейнольдса: {{ report.reynolds_number }}</p>
+    <p>Относительная шероховатость: {{ report.relative_roughness }}</p>
+    <p>Коэффициент гидравлического сопротивления: {{ report.hydraulic_resistance }}</p>
+    <p>Потеря напора на трение: {{ report.friction_head_loss }} м</p>
+    <p>Полные потери напора: {{ report.total_head_loss }} м</p>
+    <p>P: {{ report.P }} МПа</p>
+
+    <h2>Основной насос:</h2>
+    {% if report.selected_main_pump %}
+        <p>Название: {{ report.selected_main_pump.name }}</p>
+        <p>Производительность: {{ report.selected_main_pump.flow_rate }} м³/ч</p>
+        <p>Напор на ступень: {{ report.selected_main_pump.head_per_stage }} м</p>
+        <p>Количество ступеней: {{ report.required_stages }}</p>
+        <p>Мощность на ступень: {{ report.selected_main_pump.power_per_stage }} кВт</p>
+        <p>КПД: {{ report.selected_main_pump.efficiency }}%</p>
+    {% else %}
+        <p>Основной насос не найден.</p>
+    {% endif %}
+
+    <a href="{% url 'trans:download_report' report_id %}">Скачать отчет</a>
+    <a href="{% url 'trans:archive' %}">Назад к архиву</a>
+</body>
+</html>

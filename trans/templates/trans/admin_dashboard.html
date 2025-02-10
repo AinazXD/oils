@@ -1,0 +1,13 @@
+<h2>Admin Dashboard</h2>
+<p>Welcome, {{ user.username }}!</p>
+
+<form method="post" action="{% url 'trans:logout' %}">
+    {% csrf_token %}
+    <button type="submit">Выйти из системы</button>
+</form>
+<h3>Your Pipelines</h3>
+<ul>
+    {% for pipeline in pipelines %}
+        <li>{{ pipeline.PipelineID }} - {{ pipeline.Diameter }} mm</li>
+    {% endfor %}
+</ul>
