@@ -6,7 +6,7 @@ app_name = 'trans'  # Пространство имен для приложен�
 
 urlpatterns = [
     # основные страницы
-    path('', views.home, name='home'),
+    path('', views.home, name='index'),
     path('calculator/', views.calculator, name='calculator'),
     path('result/', views.result, name='result'),
 
